@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CardioTrack.Api/CardioTrack.Api.csproj" />
+    <Project Path="src/CardioTrack.Application/CardioTrack.Application.csproj" />
+    <Project Path="src/CardioTrack.Domain/CardioTrack.Domain.csproj" />
+    <Project Path="src/CardioTrack.Infrastructure/CardioTrack.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CardioTrack.Tests.Integration/CardioTrack.Tests.Integration.csproj" />
+    <Project Path="tests/CardioTrack.Tests.Unit/CardioTrack.Tests.Unit.csproj" />
+  </Folder>
+</Solution>
