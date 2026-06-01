@@ -61,7 +61,7 @@ public sealed class FabricaDeApi : WebApplicationFactory<Program>, IAsyncLifetim
         // visiveis tanto na geracao do token quanto na validacao (Bearer), evitando
         // divergencia de chave entre as duas pontas.
         Environment.SetEnvironmentVariable(
-            "ConnectionStrings__DefaultConnection", _mysql.GetConnectionString());
+            "ConnectionStrings__CARDIOTRACK_CONNECTION", _mysql.GetConnectionString());
         Environment.SetEnvironmentVariable("Jwt__Issuer", "CardioTrack.Api");
         Environment.SetEnvironmentVariable("Jwt__Audience", "CardioTrack.Client");
         Environment.SetEnvironmentVariable("Jwt__SecretKey", ChaveSecretaJwt);

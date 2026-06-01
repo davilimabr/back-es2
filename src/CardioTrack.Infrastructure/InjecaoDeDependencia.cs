@@ -20,9 +20,9 @@ public static class InjecaoDeDependencia
         this IServiceCollection servicos,
         IConfiguration configuracao)
     {
-        var stringConexao = configuracao.GetConnectionString("DefaultConnection")
+        var stringConexao = configuracao.GetConnectionString("CARDIOTRACK_CONNECTION")
             ?? throw new InvalidOperationException(
-                "A connection string 'DefaultConnection' nao foi configurada.");
+                "A connection string 'CARDIOTRACK_CONNECTION' nao foi configurada.");
 
         servicos.AddDbContext<CardioTrackDbContext>(opcoes =>
             opcoes.UseMySql(stringConexao, ServerVersion.AutoDetect(stringConexao)));
