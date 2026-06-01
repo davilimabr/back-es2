@@ -1,0 +1,506 @@
+openapi: 3.0.1
+info:
+  title: CardioTrack API
+  version: v1
+  description: >-
+    API de acompanhamento de saude cardiaca: contas de usuario, registro de
+    medicoes e relatorios. Erros sao retornados como ProblemDetails (RFC 7807).
+    Enums trafegam como texto e datas em formato ISO 8601.
+
+servers:
+  - url: http://localhost:5189
+    description: Desenvolvimento (HTTP)
+  - url: https://localhost:7045
+    description: Desenvolvimento (HTTPS)
+
+tags:
+  - name: Usuarios
+    description: Cadastro e autenticacao de contas.
+  - name: Medicoes
+    description: Registro de medicoes de saude cardiaca.
+  - name: Relatorios
+    description: Historico e resumo agregado das medicoes.
+
+paths:
+  /api/usuarios:
+    post:
+      tags: [Usuarios]
+      summary: Cadastra uma nova conta de usuario.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastrarUsuarioRequisicao'
+      responses:
+        '201':
+          description: Conta criada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioResposta'
+        '400':
+          description: Dados invalidos.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ValidationProblemDetails'
+        '409':
+          description: Ja existe uma conta com o e-mail informado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/usuarios/login:
+    post:
+      tags: [Usuarios]
+      summary: Autentica por e-mail e senha e retorna um token JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutenticarUsuarioRequisicao'
+      responses:
+        '200':
+          description: Autenticacao bem-sucedida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutenticacaoResposta'
+        '400':
+          description: Dados invalidos.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ValidationProblemDetails'
+        '401':
+          description: Credenciais invalidas.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/medicoes:
+    post:
+      tags: [Medicoes]
+      summary: Registra uma medicao para o usuario autenticado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarMedicaoRequisicao'
+      responses:
+        '201':
+          description: Medicao registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicaoResposta'
+        '400':
+          description: Dados invalidos.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ValidationProblemDetails'
+        '401':
+          description: Token ausente ou invalido.
+
+  /api/relatorios/historico:
+    get:
+      tags: [Relatorios]
+      summary: Historico de medicoes do usuario no periodo informado.
+      description: >-
+        Retorna as medicoes da mais recente para a mais antiga. Quando inicio e
+        fim sao omitidos, considera todo o historico.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Inicio'
+        - $ref: '#/components/parameters/Fim'
+      responses:
+        '200':
+          description: Historico de medicoes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricoMedicoesResposta'
+        '401':
+          description: Token ausente ou invalido.
+
+  /api/relatorios/resumo:
+    get:
+      tags: [Relatorios]
+      summary: Resumo agregado das medicoes do usuario no periodo informado.
+      description: >-
+        Dados agregados (medias, minimos, maximos e frequencia de sintomas)
+        prontos para graficos. As estatisticas por metrica sao nulas quando nao
+        ha medicoes no periodo.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Inicio'
+        - $ref: '#/components/parameters/Fim'
+      responses:
+        '200':
+          description: Resumo agregado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumoMedicoesResposta'
+        '401':
+          description: Token ausente ou invalido.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Informe o token JWT obtido no login (sem o prefixo 'Bearer').
+
+  parameters:
+    Inicio:
+      name: inicio
+      in: query
+      required: false
+      description: Inicio do periodo (inclusive), em ISO 8601.
+      schema:
+        type: string
+        format: date-time
+    Fim:
+      name: fim
+      in: query
+      required: false
+      description: Fim do periodo (inclusive), em ISO 8601.
+      schema:
+        type: string
+        format: date-time
+
+  schemas:
+    Sexo:
+      type: string
+      description: Sexo informado no cadastro.
+      enum: [Masculino, Feminino, Outro, PrefiroNaoInformar]
+
+    CadastrarUsuarioRequisicao:
+      type: object
+      required:
+        - nome
+        - sobrenome
+        - email
+        - telefone
+        - senha
+        - confirmacaoSenha
+        - dataNascimento
+        - sexo
+        - paisResidencia
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+          example: Maria
+        sobrenome:
+          type: string
+          maxLength: 100
+          example: Silva
+        email:
+          type: string
+          format: email
+          maxLength: 256
+          example: maria.silva@example.com
+        telefone:
+          type: string
+          maxLength: 30
+          example: "+55 11 99999-0000"
+        senha:
+          type: string
+          minLength: 8
+          example: senhaForte123
+        confirmacaoSenha:
+          type: string
+          description: Deve ser igual a senha.
+          example: senhaForte123
+        dataNascimento:
+          type: string
+          format: date
+          description: Deve estar no passado.
+          example: "1990-05-20"
+        sexo:
+          $ref: '#/components/schemas/Sexo'
+        paisResidencia:
+          type: string
+          maxLength: 100
+          example: Brasil
+
+    AutenticarUsuarioRequisicao:
+      type: object
+      required: [email, senha]
+      properties:
+        email:
+          type: string
+          format: email
+          example: maria.silva@example.com
+        senha:
+          type: string
+          example: senhaForte123
+
+    UsuarioResposta:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        sobrenome:
+          type: string
+        nomeCompleto:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        dataNascimento:
+          type: string
+          format: date
+        sexo:
+          $ref: '#/components/schemas/Sexo'
+        paisResidencia:
+          type: string
+        criadoEm:
+          type: string
+          format: date-time
+
+    AutenticacaoResposta:
+      type: object
+      properties:
+        token:
+          type: string
+          description: "JWT a ser enviado em 'Authorization: Bearer <token>'."
+        expiraEm:
+          type: string
+          format: date-time
+        usuario:
+          $ref: '#/components/schemas/UsuarioResposta'
+
+    RegistrarMedicaoRequisicao:
+      type: object
+      required:
+        - pressaoSistolica
+        - pressaoDiastolica
+        - frequenciaCardiaca
+        - oxigenacaoSangue
+        - pesoCorporal
+        - faltaDeAr
+        - dorNoPeito
+        - tontura
+      properties:
+        pressaoSistolica:
+          type: integer
+          minimum: 50
+          maximum: 300
+          description: mmHg. Deve ser maior que a diastolica.
+          example: 120
+        pressaoDiastolica:
+          type: integer
+          minimum: 30
+          maximum: 200
+          description: mmHg.
+          example: 80
+        frequenciaCardiaca:
+          type: integer
+          minimum: 20
+          maximum: 250
+          description: Batimentos por minuto.
+          example: 72
+        oxigenacaoSangue:
+          type: integer
+          minimum: 50
+          maximum: 100
+          description: SpO2 em porcentagem.
+          example: 98
+        pesoCorporal:
+          type: number
+          format: double
+          minimum: 0.5
+          maximum: 500
+          description: Quilogramas.
+          example: 70.5
+        faltaDeAr:
+          type: boolean
+          example: false
+        dorNoPeito:
+          type: boolean
+          example: false
+        tontura:
+          type: boolean
+          example: false
+        registradaEm:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Momento da medicao. Opcional; quando omitido, usa o instante atual.
+            Nao pode estar no futuro.
+
+    SintomasResposta:
+      type: object
+      properties:
+        faltaDeAr:
+          type: boolean
+        dorNoPeito:
+          type: boolean
+        tontura:
+          type: boolean
+
+    MedicaoResposta:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        pressaoSistolica:
+          type: integer
+        pressaoDiastolica:
+          type: integer
+        frequenciaCardiaca:
+          type: integer
+        oxigenacaoSangue:
+          type: integer
+        pesoCorporal:
+          type: number
+          format: double
+        sintomas:
+          $ref: '#/components/schemas/SintomasResposta'
+        possuiSintomas:
+          type: boolean
+        registradaEm:
+          type: string
+          format: date-time
+        criadaEm:
+          type: string
+          format: date-time
+
+    HistoricoMedicoesResposta:
+      type: object
+      properties:
+        total:
+          type: integer
+        medicoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicaoResposta'
+
+    EstatisticaResposta:
+      type: object
+      description: Resumo de uma metrica no periodo (media arredondada a 2 casas).
+      properties:
+        media:
+          type: number
+          format: double
+        minimo:
+          type: number
+          format: double
+        maximo:
+          type: number
+          format: double
+
+    FrequenciaSintomasResposta:
+      type: object
+      description: Contagem de ocorrencias de cada sintoma no periodo.
+      properties:
+        faltaDeAr:
+          type: integer
+        dorNoPeito:
+          type: integer
+        tontura:
+          type: integer
+        comAlgumSintoma:
+          type: integer
+        semSintomas:
+          type: integer
+
+    ResumoMedicoesResposta:
+      type: object
+      properties:
+        totalMedicoes:
+          type: integer
+        primeiraMedicaoEm:
+          type: string
+          format: date-time
+          nullable: true
+        ultimaMedicaoEm:
+          type: string
+          format: date-time
+          nullable: true
+        pressaoSistolica:
+          allOf:
+            - $ref: '#/components/schemas/EstatisticaResposta'
+          nullable: true
+        pressaoDiastolica:
+          allOf:
+            - $ref: '#/components/schemas/EstatisticaResposta'
+          nullable: true
+        frequenciaCardiaca:
+          allOf:
+            - $ref: '#/components/schemas/EstatisticaResposta'
+          nullable: true
+        oxigenacaoSangue:
+          allOf:
+            - $ref: '#/components/schemas/EstatisticaResposta'
+          nullable: true
+        pesoCorporal:
+          allOf:
+            - $ref: '#/components/schemas/EstatisticaResposta'
+          nullable: true
+        sintomas:
+          $ref: '#/components/schemas/FrequenciaSintomasResposta'
+
+    ProblemDetails:
+      type: object
+      description: Resposta de erro padrao (RFC 7807).
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+
+    ValidationProblemDetails:
+      type: object
+      description: ProblemDetails de validacao, com erros por campo.
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+              example:
+                email:
+                  - O e-mail informado e invalido.
+                senha:
+                  - A senha deve ter ao menos 8 caracteres.
+
+security: []
