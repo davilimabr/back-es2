@@ -1,14 +1,11 @@
-# CardioTrack — Back-End
+# CardioTrack API
 
 API REST de **acompanhamento de saude cardiaca**. Permite que um usuario crie uma
 conta, autentique-se, registre medicoes (pressao arterial, frequencia cardiaca,
-oxigenacao do sangue, peso corporal e sintomas) e consulte relatorios — o
+oxigenacao do sangue, peso corporal e sintomas) e consulte relatorios o
 historico das medicoes e um resumo agregado pronto para alimentar graficos no
 front-end.
 
-Este repositorio cobre apenas o back-end. A modelagem ja considera o front-end
-que sera construido depois, de forma que nao seja necessario alterar a API para
-integra-la a interface.
 
 ## Sumario
 
@@ -211,4 +208,3 @@ producao, incluindo migrations e conversoes.
 
 - **Swagger UI** (em desenvolvimento): `http://localhost:5189/swagger`
 - **OpenAPI (arquivo):** [`docs/swagger.yaml`](docs/swagger.yaml)
-- **Guia do front-end:** [`docs/guia-frontend.md`](docs/guia-frontend.md)
