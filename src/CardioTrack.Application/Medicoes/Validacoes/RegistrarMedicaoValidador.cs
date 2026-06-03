@@ -19,9 +19,8 @@ public sealed class RegistrarMedicaoValidador : AbstractValidator<RegistrarMedic
             .InclusiveBetween(30, 200)
             .WithMessage("A pressao diastolica deve estar entre 30 e 200 mmHg.");
 
-        RuleFor(r => r)
-            .Must(r => r.PressaoSistolica > r.PressaoDiastolica)
-            .WithName(nameof(RegistrarMedicaoRequisicao.PressaoSistolica))
+        RuleFor(r => r.PressaoSistolica)
+            .Must((r, sistolica) => sistolica > r.PressaoDiastolica)
             .WithMessage("A pressao sistolica deve ser maior que a diastolica.");
 
         RuleFor(r => r.FrequenciaCardiaca)

@@ -71,13 +71,16 @@ public sealed class MiddlewareDeTratamentoDeExcecoes
 
     private static ProblemDetails CriarProblemaDeValidacao(ExcecaoDeValidacao excecao)
     {
-        var problema = new ValidationProblemDetails(excecao.Erros.ToDictionary(
-            par => par.Key,
-            par => par.Value))
+        var problema = new ProblemDetails
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Um ou mais campos sao invalidos."
         };
+
+        // Extensions tem [JsonExtensionData], entao os erros sao serializados na raiz
+        // mesmo com o tipo estatico ProblemDetails (evita o problema de polimorfismo
+        // que descartava os erros da resposta).
+        problema.Extensions["erros"] = excecao.Erros;
 
         return problema;
     }

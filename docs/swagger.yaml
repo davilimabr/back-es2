@@ -616,21 +616,40 @@ components:
 
     ValidationProblemDetails:
       type: object
-      description: ProblemDetails de validacao, com erros por campo.
+      description: >-
+        ProblemDetails de validacao. A lista `erros` traz, para cada falha, o
+        campo rejeitado, o valor informado e a mensagem. Valores de campos
+        sensiveis (senha) sao omitidos como `***`.
       allOf:
         - $ref: '#/components/schemas/ProblemDetails'
         - type: object
           properties:
-            errors:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: string
+            erros:
+              type: array
+              items:
+                $ref: '#/components/schemas/ErroDeValidacao'
               example:
-                email:
-                  - O e-mail informado e invalido.
-                senha:
-                  - A senha deve ter ao menos 8 caracteres.
+                - campo: Email
+                  valorInformado: davi@@invalido
+                  mensagem: O e-mail informado e invalido.
+                - campo: Senha
+                  valorInformado: '***'
+                  mensagem: A senha deve ter ao menos 8 caracteres.
+
+    ErroDeValidacao:
+      type: object
+      description: Detalhe de uma unica falha de validacao.
+      properties:
+        campo:
+          type: string
+          description: Nome do campo que falhou na validacao.
+        valorInformado:
+          nullable: true
+          description: >-
+            Valor enviado pelo cliente para o campo. Omitido como `***` quando o
+            campo e sensivel (senha).
+        mensagem:
+          type: string
+          description: Mensagem que descreve o erro.
 
 security: []

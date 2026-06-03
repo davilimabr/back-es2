@@ -264,16 +264,26 @@ Erros usam o formato `ProblemDetails` (`application/problem+json`):
 }
 ```
 
-Erros de validacao (`400`) incluem o dicionario `errors` (campo -> mensagens):
+Erros de validacao (`400`) incluem a lista `erros`, com um item por falha
+contendo `campo`, `valorInformado` e `mensagem` (o valor de campos sensiveis,
+como senha, vem omitido como `***`):
 
 ```json
 {
   "status": 400,
   "title": "Um ou mais campos sao invalidos.",
-  "errors": {
-    "senha": ["A senha deve ter ao menos 8 caracteres."],
-    "confirmacaoSenha": ["A confirmacao de senha nao corresponde a senha."]
-  }
+  "erros": [
+    {
+      "campo": "Senha",
+      "valorInformado": "***",
+      "mensagem": "A senha deve ter ao menos 8 caracteres."
+    },
+    {
+      "campo": "ConfirmacaoSenha",
+      "valorInformado": "***",
+      "mensagem": "A confirmacao de senha nao corresponde a senha."
+    }
+  ]
 }
 ```
 
@@ -281,7 +291,7 @@ Resumo dos status:
 
 | Status | Significado | Acao sugerida no front-end |
 |:---:|-------------|----------------------------|
-| `400` | Validacao | Exibir mensagens por campo a partir de `errors`. |
+| `400` | Validacao | Exibir mensagens por campo a partir de `erros`. |
 | `401` | Nao autenticado | Voltar para o login. |
 | `404` | Nao encontrado | Mensagem de recurso inexistente. |
 | `409` | Conflito | Exibir `detail` (ex.: e-mail ja cadastrado). |

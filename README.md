@@ -179,7 +179,9 @@ sao validados a cada requisicao (com tolerancia de relogio de 1 minuto).
 Erros sao retornados como
 [`ProblemDetails`](https://datatracker.ietf.org/doc/html/rfc7807)
 (`application/problem+json`). Falhas de validacao usam `ValidationProblemDetails`,
-com o dicionario `errors` (campo -> lista de mensagens).
+que acrescenta a lista `erros`, com um item por falha contendo `campo`,
+`valorInformado` e `mensagem` (o valor de campos sensiveis, como senha, e omitido
+como `***`).
 
 | Status | Quando ocorre |
 |:---:|---------------|
