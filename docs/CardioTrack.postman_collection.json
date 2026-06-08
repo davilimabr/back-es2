@@ -1,0 +1,279 @@
+{
+  "info": {
+    "name": "CardioTrack API",
+    "description": "Collection para testar a CardioTrack API (acompanhamento de saude cardiaca).\n\nFluxo sugerido:\n1. `Usuarios > Cadastrar` cria uma conta.\n2. `Usuarios > Login` autentica e salva o JWT na variavel `token` automaticamente (script de teste).\n3. As rotas protegidas (Medicoes e Relatorios) usam `Bearer {{token}}` herdado no nivel da collection.\n4. `Medicoes > Registrar` salva o `id` retornado na variavel `medicaoId`, usada nas rotas de atualizar/remover.\n\nVariaveis editaveis em `Variables`: `baseUrl`, `email`, `senha`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5189",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "joao.silva@example.com",
+      "type": "string"
+    },
+    {
+      "key": "senha",
+      "value": "SenhaForte123",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "medicaoId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "Cadastrar usuario",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Joao\",\n  \"sobrenome\": \"Silva\",\n  \"email\": \"{{email}}\",\n  \"telefone\": \"+55 11 98888-7777\",\n  \"senha\": \"{{senha}}\",\n  \"confirmacaoSenha\": \"{{senha}}\",\n  \"dataNascimento\": \"1990-05-20\",\n  \"sexo\": \"Masculino\",\n  \"paisResidencia\": \"Brasil\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios"]
+            },
+            "description": "Cadastra uma nova conta. Publico. `sexo` aceita: Masculino, Feminino, Outro, PrefiroNaoInformar. Retorna 201, 400 (validacao) ou 409 (e-mail ja cadastrado)."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set('token', corpo.token);",
+                  "    console.log('Token salvo. Expira em:', corpo.expiraEm);",
+                  "}",
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Retornou token', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('token');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"senha\": \"{{senha}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "usuarios", "login"]
+            },
+            "description": "Autentica por e-mail e senha. Publico. O script de teste salva o `token` na variavel da collection automaticamente. Retorna 200, 400 ou 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Medicoes",
+      "item": [
+        {
+          "name": "Registrar medicao",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const corpo = pm.response.json();",
+                  "    pm.collectionVariables.set('medicaoId', corpo.id);",
+                  "    console.log('medicaoId salvo:', corpo.id);",
+                  "}",
+                  "pm.test('Status 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pressaoSistolica\": 120,\n  \"pressaoDiastolica\": 80,\n  \"frequenciaCardiaca\": 72,\n  \"oxigenacaoSangue\": 98,\n  \"pesoCorporal\": 75.5,\n  \"faltaDeAr\": false,\n  \"dorNoPeito\": false,\n  \"tontura\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/medicoes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicoes"]
+            },
+            "description": "Registra uma medicao para o usuario autenticado (Bearer). O `id` retornado e salvo em `medicaoId`.\n\nFaixas validas: pressaoSistolica 50-300, pressaoDiastolica 30-200 (sistolica > diastolica), frequenciaCardiaca 20-250, oxigenacaoSangue 50-100, pesoCorporal 0,5-500. `registradaEm` e opcional (ISO 8601, nao pode estar no futuro); quando ausente, usa o momento atual."
+          }
+        },
+        {
+          "name": "Registrar medicao (com data e sintomas)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pressaoSistolica\": 140,\n  \"pressaoDiastolica\": 95,\n  \"frequenciaCardiaca\": 88,\n  \"oxigenacaoSangue\": 94,\n  \"pesoCorporal\": 80.2,\n  \"faltaDeAr\": true,\n  \"dorNoPeito\": false,\n  \"tontura\": true,\n  \"registradaEm\": \"2026-06-01T08:30:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/medicoes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicoes"]
+            },
+            "description": "Variante com sintomas e data explicita. Os sintomas chegam como booleanos independentes (faltaDeAr, dorNoPeito, tontura)."
+          }
+        },
+        {
+          "name": "Atualizar medicao",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pressaoSistolica\": 118,\n  \"pressaoDiastolica\": 78,\n  \"frequenciaCardiaca\": 70,\n  \"oxigenacaoSangue\": 99,\n  \"pesoCorporal\": 74.8,\n  \"faltaDeAr\": false,\n  \"dorNoPeito\": false,\n  \"tontura\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/medicoes/{{medicaoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicoes", "{{medicaoId}}"]
+            },
+            "description": "Atualiza integralmente a medicao identificada por `medicaoId` (preenchida ao registrar). Bearer. Retorna 200, 400, 401 ou 404."
+          }
+        },
+        {
+          "name": "Remover medicao",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicoes/{{medicaoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicoes", "{{medicaoId}}"]
+            },
+            "description": "Remove a medicao identificada por `medicaoId`. Bearer. Retorna 204, 401 ou 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Relatorios",
+      "item": [
+        {
+          "name": "Historico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/relatorios/historico",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "relatorios", "historico"],
+              "query": [
+                {
+                  "key": "inicio",
+                  "value": "2026-01-01T00:00:00Z",
+                  "disabled": true
+                },
+                {
+                  "key": "fim",
+                  "value": "2026-12-31T23:59:59Z",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Historico de medicoes do usuario (mais recente primeiro). Bearer. Parametros de query `inicio` e `fim` (ISO 8601) sao opcionais — habilite-os para filtrar o periodo."
+          }
+        },
+        {
+          "name": "Resumo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/relatorios/resumo",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "relatorios", "resumo"],
+              "query": [
+                {
+                  "key": "inicio",
+                  "value": "2026-01-01T00:00:00Z",
+                  "disabled": true
+                },
+                {
+                  "key": "fim",
+                  "value": "2026-12-31T23:59:59Z",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Resumo agregado das medicoes do usuario para alimentar graficos. Bearer. `inicio` e `fim` opcionais."
+          }
+        }
+      ]
+    }
+  ]
+}
