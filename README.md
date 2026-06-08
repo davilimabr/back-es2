@@ -32,22 +32,87 @@ front-end.
 
 ## Arquitetura
 
-Arquitetura em camadas, com cada camada em um projeto separado dentro da solution.
-A separacao deixa a modularizacao explicita e facilita os testes. As dependencias
-apontam sempre para dentro (API -> Application -> Domain), com a Infrastructure
-implementando os contratos definidos na Application.
+O projeto segue uma arquitetura em camadas (Clean Architecture) com domain
+model rico. Cada camada vive em um projeto separado da solution, o que torna a
+modularizacao explicita no proprio grafo de dependencias e facilita testar cada
+camada de forma isolada.
 
-| Projeto | Responsabilidade |
-|---------|------------------|
-| `CardioTrack.Domain` | Entidades e regras de negocio puras (`Usuario`, `Medicao`, enums e invariantes). |
-| `CardioTrack.Application` | Casos de uso, DTOs, contratos de repositorio/seguranca, servicos de aplicacao e validacoes. |
-| `CardioTrack.Infrastructure` | EF Core, `DbContext`, repositorios, migrations, geracao de token JWT e hashing de senha. |
-| `CardioTrack.Api` | Controllers, middleware de erros, configuracao de Swagger, JWT e CORS. |
-| `CardioTrack.Tests.Unit` | Testes unitarios das regras de dominio e servicos. |
-| `CardioTrack.Tests.Integration` | Testes dos endpoints contra um MySQL real (Testcontainers). |
+### Regra de dependencia
 
-Dentro de cada camada o codigo e organizado por funcionalidade (**Usuarios**,
-**Medicoes** e **Relatorios**), reforcando a modularizacao tambem por dominio.
+As dependencias apontam sempre para dentro: nenhuma camada interna conhece as
+externas. O `Domain` nao referencia nada; a `Application` depende so do `Domain`;
+a `Infrastructure` e a `Api` ficam na borda. Como a `Infrastructure` implementa
+contratos (interfaces) declarados na `Application`, a dependencia de detalhes
+(EF Core, JWT, MySQL) e invertida — a regra de negocio nao sabe qual banco ou
+qual algoritmo de hash existe por tras (Dependency Inversion).
+
+![Arquitetura em camadas do CardioTrack](docs/arquitetura.png)
+
+> Diagrama gerado a partir de [`docs/arquitetura.puml`](docs/arquitetura.puml).
+
+### Camadas (projetos)
+
+| Projeto | Responsabilidade | Depende de |
+|---------|------------------|------------|
+| `CardioTrack.Domain` | Entidades ricas (`Usuario`, `Medicao`), enums (`Sexo`, `Sintoma`) e invariantes de negocio. Sem dependencia de frameworks. | — |
+| `CardioTrack.Application` | Casos de uso (servicos), DTOs de entrada/saida, validadores (FluentValidation) e **contratos** (`IRepositorio*`, `IUnidadeDeTrabalho`, `IGeradorDeToken`, `IServicoDeHashDeSenha`). | Domain |
+| `CardioTrack.Infrastructure` | Implementacoes dos contratos: `DbContext`, mapeamentos e repositorios EF Core, migrations, `UnidadeDeTrabalho`, geracao de JWT e hashing de senha. | Application |
+| `CardioTrack.Api` | Composition root: controllers, middleware de erros, e configuracao de Swagger, JWT e CORS. | Application, Infrastructure |
+| `CardioTrack.Tests.Unit` | Testes das regras de dominio, servicos e validadores (sem Docker). | — |
+| `CardioTrack.Tests.Integration` | Testes dos endpoints contra um MySQL real (Testcontainers). | — |
+
+### Modularizacao
+
+A modularizacao acontece em **dois eixos complementares**:
+
+1. **Horizontal (por camada).** A separacao tecnica acima isola responsabilidades
+   e permite trocar detalhes de infraestrutura sem tocar na regra de negocio.
+
+2. **Vertical (por funcionalidade).** Dentro de cada camada o codigo e agrupado
+   por dominio — **Usuarios**, **Medicoes** e **Relatorios** — em vez de por tipo
+   tecnico. Cada funcionalidade reune seus proprios DTOs, validacoes e servicos,
+   formando uma fatia vertical coesa que atravessa as camadas:
+
+   ```
+   Application/
+   ├── Abstracoes/        # contratos (ports) consumidos pelos servicos
+   │   ├── Persistencia/  #   IRepositorioUsuario, IRepositorioMedicao, IUnidadeDeTrabalho
+   │   └── Seguranca/     #   IGeradorDeToken, IServicoDeHashDeSenha
+   ├── Comum/             # excecoes de aplicacao e extensoes de validacao
+   ├── Usuarios/          # fatia vertical "Usuarios"
+   │   ├── Dtos/          #   contratos de entrada/saida do caso de uso
+   │   ├── Validacoes/    #   validadores FluentValidation
+   │   └── Servicos/      #   caso de uso (IServicoUsuario / ServicoUsuario)
+   ├── Medicoes/          # mesma estrutura: Dtos / Validacoes / Servicos
+   └── Relatorios/        # mesma estrutura: Dtos / Servicos
+   ```
+
+   Esse layout deixa cada funcionalidade autocontida (alta coesao, baixo
+   acoplamento) e facilita localizar e evoluir tudo que pertence a um dominio.
+
+### Padroes e decisoes de design
+
+- **Domain model rico.** As entidades protegem suas proprias invariantes no
+  construtor e nos metodos (guard clauses em `Garantir`), com setters privados —
+  nao ha estado invalido. As faixas de pressao, frequencia, oxigenacao e peso
+  vivem na entidade `Medicao`; o `Usuario` e a raiz que agrega e cria suas
+  medicoes (`Usuario.RegistrarMedicao`).
+- **Repository + Unit of Work.** Os servicos falam com `IRepositorio*` e
+  confirmam a transacao via `IUnidadeDeTrabalho.SalvarAlteracoesAsync`, sem
+  conhecer o EF Core.
+- **Ports & Adapters.** Seguranca e persistencia sao contratos na `Application`
+  implementados na `Infrastructure`, mantendo a regra de negocio agnostica a
+  tecnologia.
+- **Injecao de dependencia modular.** Cada camada expoe seu proprio registro
+  (`AdicionarAplicacao`, `AdicionarInfraestrutura`); o `Program.cs` apenas compoe
+  as camadas, sem conhecer suas internas.
+- **Validacao em duas barreiras.** FluentValidation valida o formato da entrada
+  (HTTP 400) antes de chegar ao dominio; as invariantes de negocio sao a ultima
+  linha de defesa na entidade.
+- **Erros como `ProblemDetails`.** Um middleware unico traduz excecoes de
+  aplicacao/dominio para respostas RFC 7807 (ver [Tratamento de erros](#tratamento-de-erros)).
+- **Options pattern.** As configuracoes de JWT sao tipadas em `OpcoesJwt` e
+  validadas na inicializacao (`ValidateOnStart`).
 
 ## Estrutura de pastas
 
@@ -59,13 +124,28 @@ back-es2/
 │   ├── swagger.yaml              # Especificacao OpenAPI 3.0
 │   └── guia-frontend.md          # Guia de integracao para o front-end
 ├── src/
-│   ├── CardioTrack.Domain/
-│   ├── CardioTrack.Application/
-│   ├── CardioTrack.Infrastructure/
-│   └── CardioTrack.Api/
+│   ├── CardioTrack.Domain/       # regra de negocio pura
+│   │   ├── Comum/                #   Entidade base, Garantir, ExcecaoDeDominio
+│   │   ├── Usuarios/             #   Usuario, Sexo
+│   │   └── Medicoes/             #   Medicao, Sintoma
+│   ├── CardioTrack.Application/  # casos de uso e contratos
+│   │   ├── Abstracoes/           #   ports de persistencia e seguranca
+│   │   ├── Comum/                #   excecoes de aplicacao e extensoes
+│   │   ├── Usuarios/             #   Dtos / Validacoes / Servicos
+│   │   ├── Medicoes/             #   Dtos / Validacoes / Servicos
+│   │   ├── Relatorios/           #   Dtos / Servicos
+│   │   └── InjecaoDeDependencia.cs
+│   ├── CardioTrack.Infrastructure/ # implementacoes dos contratos
+│   │   ├── Persistencia/         #   DbContext, mapeamentos, repositorios, migrations
+│   │   ├── Seguranca/            #   OpcoesJwt, GeradorDeToken, ServicoDeHashDeSenha
+│   │   └── InjecaoDeDependencia.cs
+│   └── CardioTrack.Api/          # composition root / camada HTTP
+│       ├── Comum/                #   middleware de erros, config de JWT/CORS/Swagger
+│       ├── Controllers/          #   Usuarios, Medicoes, Relatorios
+│       └── Program.cs
 └── tests/
-    ├── CardioTrack.Tests.Unit/
-    └── CardioTrack.Tests.Integration/
+    ├── CardioTrack.Tests.Unit/         # dominio, servicos e validadores
+    └── CardioTrack.Tests.Integration/  # endpoints contra MySQL real (Testcontainers)
 ```
 
 ## Como executar
